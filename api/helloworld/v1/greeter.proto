@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package helloworld.v1;
+
+// 导入的包 需要去指定目录下找到
+// 如果你用原生的protoc命令编译的话，需要指定import的目录例如：protoc --proto_path=搜索目录 --go_out=输出目录 *.proto
+// 如果你用buf编译的话，不需要指定import的目录，buf远程仓库下载到本地指定地点，同时去指定目录搜索
+import "google/api/annotations.proto";
+
+// The greeting service definition.
+service Greeter {
+  // Sends a greeting
+  rpc SayHello (HelloRequest) returns (HelloReply) {
+    option (google.api.http) = {
+      get: "/helloworld/{name}"
+    };
+  }
+}
+
+// The request message containing the user's name.
+message HelloRequest {
+  string name = 1;
+}
+
+// The response message containing the greetings
+message HelloReply {
+  string message = 1;
+}

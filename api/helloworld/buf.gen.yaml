@@ -1,0 +1,71 @@
+version: v1
+
+managed: # 用于去除proto文件中 option go_package = "xxx" 等API消费者关注的信息，使得API消费者和API提供者关注点分离
+  enabled: true
+  optimize_for: SPEED
+
+  go_package_prefix:
+    # default: hellword/api(固定)
+    # .proto文件中的 package helloworld.v1;
+    # 组合为 option go_package = "hellword/api/helloworld.v1;helloworldv1"
+    #                                                       [包名]
+    # PS: .go文件的包名为 helloworldv1，这使您可以导入各种生成的包，否则这些包可能会发生冲突（许多 Protobuf 包包含 v1 后缀）。
+    default: hellword/api
+    #  可选。从`go_package`选项行为中移除某些模块。`except`值必须是有效的模块名称。
+    #  有些情况下，您可能希望在大多数 Protobuf 文件中启用 `go_package` 选项的**managed mod，但并不一定要在所有 Protobuf 文件中启用。
+    #  比如我们依赖的`buf.build/googleapis/googleapis`这些远程仓库中的module它们不需要managed mod它们有自己的指向外部的`option go_package`因此希望是**managed mod不会覆盖它们。
+    except:
+      - 'buf.build/googleapis/googleapis'
+      - 'buf.build/envoyproxy/protoc-gen-validate'
+      - 'buf.build/kratos/apis'
+      - 'buf.build/gnostic/gnostic'
+      - 'buf.build/gogo/protobuf'
+      - 'buf.build/tx7do/pagination'
+
+plugins: # 声明使用的插件和插件的配置
+  # 使用go插件生成go代码
+  #- plugin: buf.build/protocolbuffers/go
+  - plugin: buf.build/protocolbuffers/go
+    out: ./ # 生成的目录和代码（[v+版本号]目录）输出到当前目录下
+    opt: paths=source_relative # 使用相对路径
+
+  # 使用go-grpc插件生成gRPC服务代码
+  #- plugin: buf.build/grpc/go
+  - plugin: buf.build/grpc/go
+    out: ./
+    opt:
+      - paths=source_relative # 使用相对路径
+
+  # generate message validator code
+  # 使用go-validate插件生成消息验证代码
+  - plugin:  buf.build/bufbuild/validate-go
+    out: ./
+    opt:
+      - paths=source_relative # 使用相对路径
+
+  # generate openapi v3 yaml doc
+  # 使用openapi插件生成openapi v3 yaml文档
+  # https://github.com/google/gnostic/tree/main/cmd/protoc-gen-openapi
+  - name: openapi
+    out: ./v1 # 和其他的插件不一样，是直接生成到当前目录下没有v1目录
+    opt:
+      - naming=json # 命名约定。使用"proto"则直接从proto文件传递名称。默认为：json
+      - depth=2 # 循环消息的递归深度，默认为：2
+      - default_response=false # 添加默认响应消息。如果为“true”，则自动为使用google.rpc.Status消息的操作添加默认响应。如果您使用envoy或grpc-gateway进行转码，则非常有用，因为它们使用此类型作为默认错误响应。默认为：true。
+      - enum_type=string # 枚举类型的序列化的类型。使用"string"则进行基于字符串的序列化。默认为：integer。
+      - output_mode=merged # 输出文件生成模式。默认情况下，只有一个openapi.yaml文件会生成在输出文件夹。使用“source_relative”则会为每一个'[inputfile].proto'文件单独生成一个“[inputfile].openapi.yaml”文件。默认为：merged。
+      - fq_schema_naming=false # Schema的命名是否加上包名，为true，则会加上包名，例如：system.service.v1.ListDictDetailResponse，否则为：ListDictDetailResponse。默认为：false。
+
+  # generate rest service code
+  # 使用go-http插件生成RESTful服务代码
+  - name: go-http
+    out: ./
+    opt:
+      - paths=source_relative # 使用相对路径
+
+  # generate kratos errors code
+  # 使用go-errors插件生成Kratos错误码代码
+  - name: go-errors
+    out: ./
+    opt:
+      - paths=source_relative # 使用相对路径
